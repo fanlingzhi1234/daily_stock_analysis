@@ -36,6 +36,7 @@ daily_stock_analysis/
 - [高级功能](#高级功能)
 - [回测功能](#回测功能)
 - [本地 WebUI 管理界面](#本地-webui-管理界面)
+- [资产截图解析服务](#资产截图解析服务)
 
 ---
 
@@ -537,6 +538,43 @@ docker run -d \
   -v "$(pwd)/.env:/app/.env" \
   stock-analysis \
   python main.py --serve-only --host 0.0.0.0 --port 8000
+```
+
+---
+
+## 资产截图解析服务
+
+资产截图 OCR、模板、案例和 parser 规则已拆分到独立项目：
+
+- `/Users/Reuxs/workspace/creative/asset-screenshot-parser-service`
+
+用途：
+
+- 为同花顺、支付宝等手机截图提供 OCR + parser + 模板/案例管理
+- 让多个项目复用同一套资产截图结构化服务
+- 避免 `daily_stock_analysis` 内继续维护 OCR 模型和截图解析规则
+
+当前项目通过 HTTP 调用新服务：
+
+```text
+POST /api/v1/screenshots/parse
+```
+
+快速启动：
+
+```bash
+cd /Users/Reuxs/workspace/creative/asset-screenshot-parser-service
+cp .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
+```
+
+当前项目配置：
+
+```env
+ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true
+ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL=http://127.0.0.1:8010
+ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY=
+ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS=20
 ```
 
 ---
@@ -1307,3 +1345,79 @@ AGENT_EVENT_ALERT_RULES_JSON=[{"stock_code":"600519","alert_type":"price_cross",
 - Agent 可通过 `get_portfolio_snapshot` 获取面向账户的紧凑持仓摘要，默认包含精简风险块，适合控制 Token 开销。
 - 可选参数包括 `account_id`、`cost_method`、`as_of`、`include_positions`、`include_risk`。
 - 若风险块生成失败，快照仍会返回；若当前环境未启用持仓模块，工具会返回结构化 `not_supported`。
+
+## 外部持仓截图快照（实验性）
+
+当你不想直接维护交易账本，而是每天手动上传同花顺股票持仓截图或支付宝基金持仓截图时，可使用“外部持仓快照”链路。它的设计目标是：
+
+- 接收截图并提取结构化持仓候选
+- 先保存为 `draft`，由用户确认后再落库
+- 与原 `portfolio` 交易账本完全隔离
+- 可将确认后的快照同步到飞书云文档，作为“持仓查询面板”
+
+> 重要边界：该能力记录的是“截图快照”，不是交易流水，不会自动生成买卖记录、现金流水或成本法账本回放结果。
+
+### 相关接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/external-holdings/extract-from-image` | POST | 上传截图并生成 `draft` 外部持仓快照 |
+| `/api/v1/external-holdings/snapshots/{snapshot_id}` | GET | 查询单个快照及其持仓条目 |
+| `/api/v1/external-holdings/snapshots/{snapshot_id}/confirm` | POST | 用人工确认/修正后的条目确认快照 |
+| `/api/v1/external-holdings/snapshots/{snapshot_id}/doc-sync` | POST | 手动同步该快照到飞书云文档 |
+| `/api/v1/external-holdings/latest` | GET | 查询最新已确认快照（可按来源过滤） |
+
+### 上传说明
+
+- 当前支持 `source_platform=ths_stock`（同花顺股票持仓）和 `source_platform=alipay_fund`（支付宝基金持仓）。
+- 上传文件字段名为 `file`，图片格式与股票截图识别链路一致：JPEG / PNG / WebP / GIF，最大 5MB。
+- 识别结果会保存原始 OCR/LLM 文本与结构化 warnings，便于后续人工复核。
+
+### 推荐使用方式
+
+1. 上传截图，生成 `draft` 快照。
+2. 在前端或调用方查看候选条目，修正代码、份额、市值、盈亏等字段。
+3. 调用 confirm 接口确认快照。
+4. 如已配置 `FEISHU_APP_ID`、`FEISHU_APP_SECRET`、`FEISHU_FOLDER_TOKEN`，再触发 doc-sync，把最新快照同步到飞书云文档。
+
+### 推荐配置
+
+```env
+EXTERNAL_HOLDINGS_ENABLED=true
+HOLDING_SCREENSHOT_REMINDER_ENABLED=true
+HOLDING_SCREENSHOT_REMINDER_STOCK_TIME=15:10
+HOLDING_SCREENSHOT_REMINDER_FUND_TIME=21:00
+HOLDING_SCREENSHOT_REMINDER_CHANNELS=feishu,email
+HOLDING_SCREENSHOT_DOC_SYNC_ENABLED=true
+HOLDING_SCREENSHOT_AUTO_MERGE_STOCK_LIST=false
+HOLDING_SCREENSHOT_STALE_REMINDER_HOURS=24
+```
+
+说明：
+
+- `EXTERNAL_HOLDINGS_ENABLED`：开启截图快照能力与相关接口 / 页面。
+- `HOLDING_SCREENSHOT_REMINDER_ENABLED`：仅在 `schedule` 模式下生效，用于定时提醒你更新截图。
+- `HOLDING_SCREENSHOT_REMINDER_CHANNELS`：当前支持 `feishu,email`。
+- `HOLDING_SCREENSHOT_DOC_SYNC_ENABLED`：确认截图快照后，若已配置飞书应用与云文档目录，可同步更新飞书文档。
+- `HOLDING_SCREENSHOT_AUTO_MERGE_STOCK_LIST`：预留为后续增强开关，当前默认关闭，避免把 OCR 噪声直接并入自选池。
+
+### 资产截图解析服务（推荐）
+
+外部持仓截图链路现在改为调用独立的 `asset-screenshot-parser-service`。
+当前项目只负责截图上传入口、快照入库、人工确认和飞书同步，OCR、截图类型识别、模板、案例与 parser 规则由新服务维护。
+
+推荐配置：
+
+```env
+ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true
+ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL=http://127.0.0.1:8010
+ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY=
+ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS=20
+```
+
+说明：
+
+- 当 `ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true` 且 `ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL` 可用时，外部持仓截图会调用新服务的 `/api/v1/screenshots/parse`。
+- 旧的 `OCR_SERVICE_*` 配置仅保留兼容读取，不再作为推荐入口。
+- 若新服务不可用，截图提取会失败并提示配置或服务连接问题；当前项目不再回退到内置 Vision LLM 解析。
+- 新服务仓库本地路径为 `/Users/Reuxs/workspace/creative/asset-screenshot-parser-service`。

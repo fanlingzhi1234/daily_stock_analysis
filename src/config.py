@@ -662,6 +662,15 @@ class Config:
     vision_model: str = ""
     # VISION_PROVIDER_PRIORITY: comma-separated provider order for Vision fallback.
     vision_provider_priority: str = "gemini,anthropic,openai"
+    # === Shared OCR service 配置 ===
+    ocr_service_enabled: bool = False
+    ocr_service_base_url: Optional[str] = None
+    ocr_service_api_key: Optional[str] = None
+    ocr_service_timeout_seconds: float = 20.0
+    asset_screenshot_parser_service_enabled: bool = False
+    asset_screenshot_parser_service_base_url: Optional[str] = None
+    asset_screenshot_parser_service_api_key: Optional[str] = None
+    asset_screenshot_parser_service_timeout_seconds: float = 20.0
 
     # === 搜索引擎配置（支持多 Key 负载均衡）===
     anspire_api_keys: List[str] = field(default_factory=list)  # Anspire Search API Keys
@@ -848,6 +857,22 @@ class Config:
     market_review_region: str = "cn"
     # 交易日检查：默认启用，非交易日跳过执行；设为 false 或 --force-run 可强制执行（Issue #373）
     trading_day_check_enabled: bool = True
+    # 外部持仓截图快照总开关
+    external_holdings_enabled: bool = False
+    # 是否启用持仓截图提醒（依赖 schedule 模式）
+    holding_screenshot_reminder_enabled: bool = False
+    # 同花顺股票持仓截图提醒时间（HH:MM）
+    holding_screenshot_reminder_stock_time: str = "15:10"
+    # 支付宝基金持仓截图提醒时间（HH:MM）
+    holding_screenshot_reminder_fund_time: str = "21:00"
+    # 提醒渠道：feishu,email
+    holding_screenshot_reminder_channels: List[str] = field(default_factory=list)
+    # 确认快照后是否尝试同步飞书云文档
+    holding_screenshot_doc_sync_enabled: bool = True
+    # 是否自动把截图中的股票 / ETF 合并到 STOCK_LIST
+    holding_screenshot_auto_merge_stock_list: bool = False
+    # 若指定小时内未确认新快照，可用于后续过期提醒
+    holding_screenshot_stale_reminder_hours: int = 24
 
     # === 实时行情增强数据配置 ===
     # 实时行情开关（关闭后使用历史收盘价进行分析）
@@ -1391,6 +1416,38 @@ class Config:
                 or ""
             ),
             vision_provider_priority=os.getenv('VISION_PROVIDER_PRIORITY', 'gemini,anthropic,openai'),
+            ocr_service_enabled=parse_env_bool(os.getenv('OCR_SERVICE_ENABLED'), False),
+            ocr_service_base_url=(os.getenv('OCR_SERVICE_BASE_URL') or '').strip() or None,
+            ocr_service_api_key=(os.getenv('OCR_SERVICE_API_KEY') or '').strip() or None,
+            ocr_service_timeout_seconds=parse_env_float(
+                os.getenv('OCR_SERVICE_TIMEOUT_SECONDS'),
+                20.0,
+                field_name='OCR_SERVICE_TIMEOUT_SECONDS',
+                minimum=1.0,
+                maximum=120.0,
+            ),
+            asset_screenshot_parser_service_enabled=parse_env_bool(
+                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED'),
+                parse_env_bool(os.getenv('OCR_SERVICE_ENABLED'), False),
+            ),
+            asset_screenshot_parser_service_base_url=(
+                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL')
+                or os.getenv('OCR_SERVICE_BASE_URL')
+                or ''
+            ).strip() or None,
+            asset_screenshot_parser_service_api_key=(
+                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY')
+                or os.getenv('OCR_SERVICE_API_KEY')
+                or ''
+            ).strip() or None,
+            asset_screenshot_parser_service_timeout_seconds=parse_env_float(
+                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS')
+                or os.getenv('OCR_SERVICE_TIMEOUT_SECONDS'),
+                20.0,
+                field_name='ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS',
+                minimum=1.0,
+                maximum=120.0,
+            ),
             anspire_api_keys=anspire_api_keys,
             bocha_api_keys=bocha_api_keys,
             minimax_api_keys=minimax_api_keys,
@@ -1596,6 +1653,35 @@ class Config:
                 os.getenv('MARKET_REVIEW_REGION', 'cn')
             ),
             trading_day_check_enabled=os.getenv('TRADING_DAY_CHECK_ENABLED', 'true').lower() != 'false',
+            external_holdings_enabled=os.getenv('EXTERNAL_HOLDINGS_ENABLED', 'false').lower() == 'true',
+            holding_screenshot_reminder_enabled=(
+                os.getenv('HOLDING_SCREENSHOT_REMINDER_ENABLED', 'false').lower() == 'true'
+            ),
+            holding_screenshot_reminder_stock_time=os.getenv(
+                'HOLDING_SCREENSHOT_REMINDER_STOCK_TIME',
+                '15:10',
+            ),
+            holding_screenshot_reminder_fund_time=os.getenv(
+                'HOLDING_SCREENSHOT_REMINDER_FUND_TIME',
+                '21:00',
+            ),
+            holding_screenshot_reminder_channels=[
+                item.strip().lower()
+                for item in os.getenv('HOLDING_SCREENSHOT_REMINDER_CHANNELS', '').split(',')
+                if item.strip()
+            ],
+            holding_screenshot_doc_sync_enabled=(
+                os.getenv('HOLDING_SCREENSHOT_DOC_SYNC_ENABLED', 'true').lower() == 'true'
+            ),
+            holding_screenshot_auto_merge_stock_list=(
+                os.getenv('HOLDING_SCREENSHOT_AUTO_MERGE_STOCK_LIST', 'false').lower() == 'true'
+            ),
+            holding_screenshot_stale_reminder_hours=parse_env_int(
+                os.getenv('HOLDING_SCREENSHOT_STALE_REMINDER_HOURS'),
+                24,
+                field_name='HOLDING_SCREENSHOT_STALE_REMINDER_HOURS',
+                minimum=1,
+            ),
             webui_enabled=os.getenv('WEBUI_ENABLED', 'false').lower() == 'true',
             webui_host=os.getenv('WEBUI_HOST', '127.0.0.1'),
             webui_port=parse_env_int(os.getenv('WEBUI_PORT'), 8000, field_name='WEBUI_PORT', minimum=1, maximum=65535),
@@ -2601,6 +2687,44 @@ class Config:
                     ),
                     field="VISION_MODEL",
                 ))
+
+        if self.ocr_service_enabled:
+            if not self.ocr_service_base_url:
+                issues.append(ConfigIssue(
+                    severity="error",
+                    message=(
+                        "OCR_SERVICE_ENABLED 已开启，但未配置 OCR_SERVICE_BASE_URL。"
+                        "旧版 OCR_SERVICE_* 兼容配置缺少服务地址。"
+                    ),
+                    field="OCR_SERVICE_BASE_URL",
+                ))
+            else:
+                parsed_ocr_service = urlparse(self.ocr_service_base_url)
+                if parsed_ocr_service.scheme not in {"http", "https"} or not parsed_ocr_service.netloc:
+                    issues.append(ConfigIssue(
+                        severity="error",
+                        message="OCR_SERVICE_BASE_URL 必须是有效的 http/https 地址。",
+                        field="OCR_SERVICE_BASE_URL",
+                    ))
+
+        if self.asset_screenshot_parser_service_enabled:
+            if not self.asset_screenshot_parser_service_base_url:
+                issues.append(ConfigIssue(
+                    severity="error",
+                    message=(
+                        "ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED 已开启，但未配置 "
+                        "ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL。"
+                    ),
+                    field="ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL",
+                ))
+            else:
+                parsed_parser_service = urlparse(self.asset_screenshot_parser_service_base_url)
+                if parsed_parser_service.scheme not in {"http", "https"} or not parsed_parser_service.netloc:
+                    issues.append(ConfigIssue(
+                        severity="error",
+                        message="ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL 必须是有效的 http/https 地址。",
+                        field="ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL",
+                    ))
 
         return issues
 

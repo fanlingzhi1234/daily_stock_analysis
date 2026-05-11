@@ -93,6 +93,15 @@ from api.v1.schemas.portfolio import (
     PortfolioFxRefreshResponse,
     PortfolioRiskResponse,
 )
+from api.v1.schemas.external_holdings import (
+    ExternalHoldingPositionInput,
+    ExternalHoldingPositionItem,
+    ExternalHoldingSnapshotItem,
+    ExternalHoldingExtractResponse,
+    ExternalHoldingConfirmRequest,
+    ExternalHoldingDocSyncResponse,
+    ExternalHoldingStatusResponse,
+)
 
 __all__ = [
     # common
@@ -173,4 +182,12 @@ __all__ = [
     "PortfolioImportBrokerListResponse",
     "PortfolioFxRefreshResponse",
     "PortfolioRiskResponse",
+    # external holdings
+    "ExternalHoldingPositionInput",
+    "ExternalHoldingPositionItem",
+    "ExternalHoldingSnapshotItem",
+    "ExternalHoldingExtractResponse",
+    "ExternalHoldingConfirmRequest",
+    "ExternalHoldingDocSyncResponse",
+    "ExternalHoldingStatusResponse",
 ]

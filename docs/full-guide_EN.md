@@ -36,6 +36,8 @@ daily_stock_analysis/
 - [Advanced Features](#advanced-features)
 - [Backtesting](#backtesting)
 - [Local WebUI Management Interface](#local-webui-management-interface)
+- [External Holdings Screenshot Snapshots](#external-holdings-screenshot-snapshots)
+- [Asset Screenshot Parser Service](#asset-screenshot-parser-service)
 
 ---
 
@@ -502,6 +504,39 @@ docker run -d \
   -v "$(pwd)/.env:/app/.env" \
   stock-analysis \
   python main.py --serve-only --host 0.0.0.0 --port 8000
+```
+
+---
+
+## Asset Screenshot Parser Service
+
+Screenshot OCR, templates, cases, and parser rules have moved to the standalone project:
+
+- `/Users/Reuxs/workspace/creative/asset-screenshot-parser-service`
+
+Its purpose is to provide a reusable OCR + parser + template/case service for mobile asset screenshots, while keeping `daily_stock_analysis` focused on upload, snapshot storage, confirmation, and Feishu sync.
+
+This project calls:
+
+```text
+POST /api/v1/screenshots/parse
+```
+
+Quick start:
+
+```bash
+cd /Users/Reuxs/workspace/creative/asset-screenshot-parser-service
+cp .env.example .env
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
+```
+
+Configuration in this project:
+
+```env
+ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true
+ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL=http://127.0.0.1:8010
+ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY=
+ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS=20
 ```
 
 ---
@@ -1113,6 +1148,60 @@ AGENT_EVENT_MONITOR_ENABLED=true
 AGENT_EVENT_MONITOR_INTERVAL_MINUTES=5
 AGENT_EVENT_ALERT_RULES_JSON=[{"stock_code":"600519","alert_type":"price_cross","direction":"above","price":1800},{"stock_code":"300750","alert_type":"price_change_percent","direction":"down","change_pct":3.0},{"stock_code":"000858","alert_type":"volume_spike","multiplier":2.5}]
 ```
+
+## External Holdings Screenshot Snapshots
+
+Use this workflow when you do not want to maintain a full trade ledger for every platform, but you still want a daily holdings view based on manual screenshots from Tonghuashun stock holdings or Alipay fund holdings.
+
+What it does:
+
+- Upload a screenshot and extract structured holding candidates
+- Save the result as a `draft` snapshot first
+- Let you review and confirm the items before persistence
+- Keep the screenshot snapshot fully isolated from the `portfolio` trade ledger
+- Optionally sync the latest confirmed snapshot to a Feishu cloud document
+
+Recommended configuration:
+
+```env
+EXTERNAL_HOLDINGS_ENABLED=true
+HOLDING_SCREENSHOT_REMINDER_ENABLED=true
+HOLDING_SCREENSHOT_REMINDER_STOCK_TIME=15:10
+HOLDING_SCREENSHOT_REMINDER_FUND_TIME=21:00
+HOLDING_SCREENSHOT_REMINDER_CHANNELS=feishu,email
+HOLDING_SCREENSHOT_DOC_SYNC_ENABLED=true
+HOLDING_SCREENSHOT_AUTO_MERGE_STOCK_LIST=false
+HOLDING_SCREENSHOT_STALE_REMINDER_HOURS=24
+```
+
+Notes:
+
+- `HOLDING_SCREENSHOT_REMINDER_ENABLED` only works in schedule mode.
+- `HOLDING_SCREENSHOT_REMINDER_CHANNELS` currently supports `feishu,email`.
+- `HOLDING_SCREENSHOT_DOC_SYNC_ENABLED` syncs the latest confirmed snapshot to Feishu Doc when `FEISHU_APP_ID`, `FEISHU_APP_SECRET`, and `FEISHU_FOLDER_TOKEN` are configured.
+- `HOLDING_SCREENSHOT_AUTO_MERGE_STOCK_LIST` remains disabled by default to avoid pushing OCR noise directly into your watchlist.
+
+### Asset Screenshot Parser Service (Recommended)
+
+The external holdings screenshot workflow now calls the standalone
+`asset-screenshot-parser-service`. This project keeps upload, snapshot storage,
+manual confirmation, and Feishu sync responsibilities; OCR, screenshot
+classification, templates, cases, and parser rules live in the new service.
+
+Recommended configuration:
+
+```env
+ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true
+ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL=http://127.0.0.1:8010
+ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY=
+ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS=20
+```
+
+Notes:
+
+- When `ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true` and `ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL` is reachable, external holdings screenshots call the standalone parser service at `/api/v1/screenshots/parse`.
+- Legacy `OCR_SERVICE_*` variables are still read for compatibility, but they are no longer the recommended configuration.
+- If the parser service is unavailable, extraction fails with a service/configuration error. This project no longer falls back to the built-in Vision LLM parser.
 
 ---
 

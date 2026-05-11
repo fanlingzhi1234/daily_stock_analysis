@@ -2,6 +2,7 @@ import axios from 'axios';
 
 export type ApiErrorCategory =
   | 'agent_disabled'
+  | 'feature_disabled'
   | 'missing_params'
   | 'llm_not_configured'
   | 'model_tool_incompatible'
@@ -308,6 +309,16 @@ export function parseApiError(error: unknown): ParsedApiError {
       rawMessage,
       status,
       category: 'agent_disabled',
+    });
+  }
+
+  if (errorCode === 'feature_disabled' || includesAny(matchText, ['external holdings screenshot snapshots are not enabled'])) {
+    return createParsedApiError({
+      title: '功能未启用',
+      message: '当前环境尚未开启外部持仓截图快照功能，请先配置 EXTERNAL_HOLDINGS_ENABLED=true 后再重试。',
+      rawMessage,
+      status,
+      category: 'feature_disabled',
     });
   }
 
