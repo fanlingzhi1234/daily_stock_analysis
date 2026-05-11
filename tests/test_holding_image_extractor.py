@@ -164,7 +164,7 @@ class HoldingImageExtractorTestCase(unittest.TestCase):
         items, warnings = _parse_items(raw_text=raw_payload, source_platform="ths_stock")
 
         self.assertEqual(len(items), 4)
-        self.assertIsNone(items[0]["symbol"])
+        self.assertEqual(items[0]["display_name"], "恒指科技")
         self.assertEqual(items[1]["symbol"], "000547")
         self.assertEqual(items[2]["symbol"], "000559")
         self.assertEqual(items[3]["symbol"], "002462")
