@@ -595,6 +595,74 @@ class PortfolioFxRate(Base):
     )
 
 
+class ExternalHoldingSnapshot(Base):
+    """One uploaded holdings screenshot batch and its reviewed status."""
+
+    __tablename__ = 'external_holding_snapshots'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_platform = Column(String(32), nullable=False, index=True)
+    snapshot_date = Column(Date, nullable=False, index=True)
+    captured_at = Column(DateTime, index=True)
+    uploaded_at = Column(DateTime, default=datetime.now, nullable=False, index=True)
+    status = Column(String(16), nullable=False, default='draft', index=True)
+    total_market_value = Column(Float)
+    total_profit = Column(Float)
+    currency = Column(String(8), nullable=False, default='CNY')
+    raw_image_path = Column(Text)
+    ocr_raw_text = Column(Text)
+    warnings_json = Column(Text)
+    review_notes = Column(Text)
+    doc_url = Column(Text)
+    doc_title = Column(String(255))
+    doc_sync_status = Column(String(16), default='pending')
+    doc_sync_error = Column(Text)
+    doc_exported_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    __table_args__ = (
+        Index('ix_external_holding_snapshot_platform_status_date', 'source_platform', 'status', 'snapshot_date'),
+    )
+
+
+class ExternalHoldingPosition(Base):
+    """Structured positions extracted from one external holdings screenshot."""
+
+    __tablename__ = 'external_holding_positions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    snapshot_id = Column(
+        Integer,
+        ForeignKey('external_holding_snapshots.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    asset_type = Column(String(16), nullable=False, default='stock')
+    source_platform = Column(String(32), nullable=False, index=True)
+    symbol = Column(String(32), index=True)
+    display_name = Column(String(128))
+    market = Column(String(16), nullable=False, default='cn')
+    quantity = Column(Float)
+    market_value = Column(Float)
+    cost_basis_total = Column(Float)
+    profit_amount = Column(Float)
+    profit_pct = Column(Float)
+    position_weight = Column(Float)
+    price = Column(Float)
+    price_date = Column(Date)
+    confidence = Column(String(16), nullable=False, default='medium')
+    is_manually_edited = Column(Boolean, nullable=False, default=False)
+    raw_payload = Column(Text)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    __table_args__ = (
+        Index('ix_external_holding_position_snapshot_market', 'snapshot_id', 'market'),
+        Index('ix_external_holding_position_symbol_platform', 'symbol', 'source_platform'),
+    )
+
+
 class ConversationMessage(Base):
     """
     Agent 对话历史记录表

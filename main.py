@@ -941,6 +941,29 @@ def main() -> int:
                 else:
                     logger.info("EventMonitor 已启用，但未加载到有效规则，跳过后台提醒任务")
 
+            if getattr(config, 'external_holdings_enabled', False) and getattr(
+                config,
+                'holding_screenshot_reminder_enabled',
+                False,
+            ):
+                from src.services.holdings_reminder_service import HoldingsReminderService
+
+                reminder_service = HoldingsReminderService(config)
+
+                def holdings_reminder_task():
+                    runtime_config = _reload_runtime_config()
+                    reminder_service.set_config(runtime_config)
+                    triggered = reminder_service.run_pending()
+                    if triggered:
+                        logger.info("[ExternalHoldingsReminder] 本轮发送 %d 条截图提醒", len(triggered))
+
+                background_tasks.append({
+                    "task": holdings_reminder_task,
+                    "interval_seconds": 60,
+                    "run_immediately": True,
+                    "name": "external_holdings_reminder",
+                })
+
             run_with_schedule(
                 task=scheduled_task,
                 schedule_time=config.schedule_time,

@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 _STOCK_INDEX_FILENAME = "stocks.index.json"
 _STOCK_INDEX_CACHE: Dict[str, str] | None = None
+_STOCK_NAME_TO_CODE_CACHE: Dict[str, str] | None = None
 _STOCK_INDEX_CACHE_LOCK = RLock()
 
 
@@ -115,6 +116,49 @@ def get_stock_name_index_map() -> Dict[str, str]:
         return _STOCK_INDEX_CACHE
 
 
+def get_index_code_by_name(name: str) -> str | None:
+    """Resolve an exact display name to a code using the generated frontend stock index."""
+    global _STOCK_NAME_TO_CODE_CACHE
+
+    candidate = str(name or "").strip()
+    if not candidate:
+        return None
+
+    if _STOCK_NAME_TO_CODE_CACHE is None:
+        with _STOCK_INDEX_CACHE_LOCK:
+            if _STOCK_NAME_TO_CODE_CACHE is None:
+                reverse_map: Dict[str, str] = {}
+                for candidate_path in get_stock_index_candidate_paths():
+                    if not candidate_path.is_file():
+                        continue
+                    try:
+                        with candidate_path.open("r", encoding="utf-8") as fh:
+                            raw_items = json.load(fh)
+                    except (OSError, TypeError, ValueError) as exc:
+                        logger.debug("[股票名称] 读取股票索引失败 %s: %s", candidate_path, exc)
+                        continue
+
+                    if not isinstance(raw_items, list):
+                        continue
+
+                    for item in raw_items:
+                        if not isinstance(item, list) or len(item) < 3:
+                            continue
+                        canonical_code, display_code, display_name = item[0], item[1], item[2]
+                        display_name = str(display_name or "").strip()
+                        display_code = str(display_code or "").strip()
+                        if not display_name or not display_code:
+                            continue
+                        reverse_map.setdefault(display_name, display_code)
+
+                _STOCK_NAME_TO_CODE_CACHE = reverse_map
+
+    code = (_STOCK_NAME_TO_CODE_CACHE or {}).get(candidate)
+    if code:
+        return code
+    return None
+
+
 def get_index_stock_name(stock_code: str) -> str | None:
     """Resolve a stock name from the generated frontend stock index."""
     code = str(stock_code or "").strip()
@@ -131,6 +175,7 @@ def get_index_stock_name(stock_code: str) -> str | None:
 
 
 def _clear_stock_index_cache_for_tests() -> None:
-    global _STOCK_INDEX_CACHE
+    global _STOCK_INDEX_CACHE, _STOCK_NAME_TO_CODE_CACHE
     with _STOCK_INDEX_CACHE_LOCK:
         _STOCK_INDEX_CACHE = None
+        _STOCK_NAME_TO_CODE_CACHE = None
