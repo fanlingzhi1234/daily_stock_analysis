@@ -1131,7 +1131,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "default_value": None,
         "options": [],
         "validation": {"multi_value": True, "delimiter": ","},
-        "display_order": 27,
+        "display_order": 80,
     },
     # ------------------------------------------------------------------
     # Notification – Discord
@@ -1770,7 +1770,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "validation": {"min": 1, "max": 120},
         "display_order": 22,
     },
-    "ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED": {
+    "ASSET_PARSER_ENABLED": {
         "title": "Asset Screenshot Parser Service",
         "description": "Use the standalone asset screenshot parser service for external holdings screenshots.",
         "category": "system",
@@ -1784,7 +1784,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "validation": {},
         "display_order": 23,
     },
-    "ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL": {
+    "ASSET_PARSER_BASE_URL": {
         "title": "Asset Screenshot Parser Base URL",
         "description": "Base URL of asset-screenshot-parser-service, e.g. http://parser:8010.",
         "category": "system",
@@ -1798,7 +1798,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "validation": {},
         "display_order": 24,
     },
-    "ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY": {
+    "ASSET_PARSER_API_KEY": {
         "title": "Asset Screenshot Parser API Key",
         "description": "Optional X-API-Key used by asset-screenshot-parser-service.",
         "category": "system",
@@ -1812,7 +1812,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "validation": {},
         "display_order": 25,
     },
-    "ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS": {
+    "ASSET_PARSER_TIMEOUT_SECONDS": {
         "title": "Asset Screenshot Parser Timeout",
         "description": "Timeout in seconds for parser service requests.",
         "category": "system",
@@ -1825,6 +1825,62 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "options": [],
         "validation": {"min": 1, "max": 120},
         "display_order": 26,
+    },
+    "ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED": {
+        "title": "Legacy Asset Parser Enable Flag",
+        "description": "Deprecated alias. Prefer ASSET_PARSER_ENABLED.",
+        "category": "system",
+        "data_type": "boolean",
+        "ui_control": "switch",
+        "is_sensitive": False,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": "false",
+        "options": [],
+        "validation": {},
+        "display_order": 27,
+    },
+    "ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL": {
+        "title": "Legacy Asset Parser Base URL",
+        "description": "Deprecated alias. Prefer ASSET_PARSER_BASE_URL.",
+        "category": "system",
+        "data_type": "string",
+        "ui_control": "text",
+        "is_sensitive": False,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": None,
+        "options": [],
+        "validation": {},
+        "display_order": 81,
+    },
+    "ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY": {
+        "title": "Legacy Asset Parser API Key",
+        "description": "Deprecated alias. Prefer ASSET_PARSER_API_KEY.",
+        "category": "system",
+        "data_type": "string",
+        "ui_control": "password",
+        "is_sensitive": True,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": None,
+        "options": [],
+        "validation": {},
+        "display_order": 82,
+    },
+    "ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS": {
+        "title": "Legacy Asset Parser Timeout",
+        "description": "Deprecated alias. Prefer ASSET_PARSER_TIMEOUT_SECONDS.",
+        "category": "system",
+        "data_type": "number",
+        "ui_control": "number",
+        "is_sensitive": False,
+        "is_required": False,
+        "is_editable": True,
+        "default_value": "20",
+        "options": [],
+        "validation": {"min": 1, "max": 120},
+        "display_order": 83,
     },
     "HTTP_PROXY": {
         "title": "HTTP Proxy",

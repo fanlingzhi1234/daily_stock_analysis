@@ -1191,16 +1191,16 @@ classification, templates, cases, and parser rules live in the new service.
 Recommended configuration:
 
 ```env
-ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true
-ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL=http://127.0.0.1:8010
-ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY=
-ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS=20
+ASSET_PARSER_ENABLED=true
+ASSET_PARSER_BASE_URL=http://127.0.0.1:8010
+ASSET_PARSER_API_KEY=
+ASSET_PARSER_TIMEOUT_SECONDS=90
 ```
 
 Notes:
 
-- When `ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true` and `ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL` is reachable, external holdings screenshots call the standalone parser service at `/api/v1/screenshots/parse`.
-- Legacy `OCR_SERVICE_*` variables are still read for compatibility, but they are no longer the recommended configuration.
+- When `ASSET_PARSER_ENABLED=true` and `ASSET_PARSER_BASE_URL` is reachable, external holdings screenshots call the standalone parser service at `/api/v1/screenshots/parse`.
+- Legacy `ASSET_SCREENSHOT_PARSER_SERVICE_*` and `OCR_SERVICE_*` variables are still read for compatibility, but they are no longer the recommended configuration.
 - If the parser service is unavailable, extraction fails with a service/configuration error. This project no longer falls back to the built-in Vision LLM parser.
 
 ---

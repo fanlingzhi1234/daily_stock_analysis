@@ -165,6 +165,7 @@ class HoldingImageExtractorTestCase(unittest.TestCase):
 
         self.assertEqual(len(items), 4)
         self.assertEqual(items[0]["display_name"], "恒指科技")
+        self.assertIsNone(items[0]["symbol"])
         self.assertEqual(items[1]["symbol"], "000547")
         self.assertEqual(items[2]["symbol"], "000559")
         self.assertEqual(items[3]["symbol"], "002462")
@@ -174,6 +175,8 @@ class HoldingImageExtractorTestCase(unittest.TestCase):
         self.assertTrue(any("000547" in warning for warning in warnings))
         self.assertTrue(any("000559" in warning for warning in warnings))
         self.assertTrue(any("002462" in warning for warning in warnings))
+        self.assertTrue(any("指数/ETF代码缺失" in warning for warning in warnings))
+        self.assertFalse(any("603106" in warning for warning in warnings))
 
 
 if __name__ == "__main__":

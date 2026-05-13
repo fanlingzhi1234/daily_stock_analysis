@@ -43,7 +43,7 @@ def extract_holdings_from_image(
     base_extractor._verify_image_magic_bytes(image_bytes, mime_type)
     parser_client = OCRServiceClient()
     if not parser_client.is_configured():
-        raise ValueError("未配置资产截图解析服务，请设置 ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL")
+        raise ValueError("未配置资产截图解析服务，请设置 ASSET_PARSER_BASE_URL")
 
     payload = parser_client.parse_holdings_screenshot(
         image_bytes=image_bytes,
@@ -124,15 +124,24 @@ def _normalize_item(
     symbol_raw = _clean_text(raw_item.get("symbol") or raw_item.get("code"))
     symbol = normalize_code(symbol_raw) if symbol_raw else None
 
-    if not symbol and display_name:
-        symbol = get_index_code_by_name(display_name) or resolve_name_to_code(display_name)
-        if symbol:
-            warnings.append(f"row={row_index}: 代码缺失，已根据名称解析为 {symbol}")
-
-    asset_type = _clean_text(raw_item.get("asset_type")) or ("fund" if source_platform == "alipay_fund" else "stock")
+    asset_type = _clean_text(raw_item.get("asset_type")) or _infer_asset_type(
+        display_name=display_name,
+        source_platform=source_platform,
+    )
     asset_type = asset_type.lower()
     if asset_type not in VALID_ASSET_TYPES:
-        asset_type = "fund" if source_platform == "alipay_fund" else "stock"
+        asset_type = _infer_asset_type(
+            display_name=display_name,
+            source_platform=source_platform,
+        )
+
+    if not symbol and display_name:
+        symbol = _resolve_symbol_for_holding(
+            display_name=display_name,
+            asset_type=asset_type,
+            warnings=warnings,
+            row_index=row_index,
+        )
 
     market = _clean_text(raw_item.get("market")) or ("fund" if asset_type == "fund" else _infer_market(symbol))
     market = market.lower()
@@ -177,6 +186,45 @@ def _normalize_item(
         "is_manually_edited": False,
         "raw_payload": json.dumps(raw_item, ensure_ascii=False),
     }
+
+
+def _infer_asset_type(*, display_name: Optional[str], source_platform: str) -> str:
+    if source_platform == "alipay_fund":
+        return "fund"
+    if _looks_like_etf_or_index_name(display_name):
+        return "etf"
+    return "stock"
+
+
+def _resolve_symbol_for_holding(
+    *,
+    display_name: str,
+    asset_type: str,
+    warnings: List[str],
+    row_index: int,
+) -> Optional[str]:
+    if asset_type == "fund":
+        return None
+
+    if asset_type == "etf":
+        symbol = get_index_code_by_name(display_name)
+        if symbol:
+            warnings.append(f"row={row_index}: 代码缺失，已根据指数/ETF名称解析为 {symbol}")
+            return symbol
+        warnings.append(f"row={row_index}: 指数/ETF代码缺失，未执行普通股票模糊解析，请人工确认")
+        return None
+
+    symbol = get_index_code_by_name(display_name) or resolve_name_to_code(display_name)
+    if symbol:
+        warnings.append(f"row={row_index}: 代码缺失，已根据名称解析为 {symbol}")
+    return symbol
+
+
+def _looks_like_etf_or_index_name(name: Optional[str]) -> bool:
+    text = str(name or "").strip()
+    if not text:
+        return False
+    return any(keyword in text for keyword in ("ETF", "LOF", "指数", "恒指", "纳指"))
 
 
 def _clean_text(value: Any) -> Optional[str]:

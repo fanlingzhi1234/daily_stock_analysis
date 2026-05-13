@@ -1427,24 +1427,28 @@ class Config:
                 maximum=120.0,
             ),
             asset_screenshot_parser_service_enabled=parse_env_bool(
-                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED'),
+                os.getenv('ASSET_PARSER_ENABLED')
+                or os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED'),
                 parse_env_bool(os.getenv('OCR_SERVICE_ENABLED'), False),
             ),
             asset_screenshot_parser_service_base_url=(
-                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL')
+                os.getenv('ASSET_PARSER_BASE_URL')
+                or os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL')
                 or os.getenv('OCR_SERVICE_BASE_URL')
                 or ''
             ).strip() or None,
             asset_screenshot_parser_service_api_key=(
-                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY')
+                os.getenv('ASSET_PARSER_API_KEY')
+                or os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY')
                 or os.getenv('OCR_SERVICE_API_KEY')
                 or ''
             ).strip() or None,
             asset_screenshot_parser_service_timeout_seconds=parse_env_float(
-                os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS')
+                os.getenv('ASSET_PARSER_TIMEOUT_SECONDS')
+                or os.getenv('ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS')
                 or os.getenv('OCR_SERVICE_TIMEOUT_SECONDS'),
                 20.0,
-                field_name='ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS',
+                field_name='ASSET_PARSER_TIMEOUT_SECONDS',
                 minimum=1.0,
                 maximum=120.0,
             ),
@@ -2712,18 +2716,18 @@ class Config:
                 issues.append(ConfigIssue(
                     severity="error",
                     message=(
-                        "ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED 已开启，但未配置 "
-                        "ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL。"
+                        "ASSET_PARSER_ENABLED 已开启，但未配置 ASSET_PARSER_BASE_URL。"
+                        "兼容旧配置 ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL。"
                     ),
-                    field="ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL",
+                    field="ASSET_PARSER_BASE_URL",
                 ))
             else:
                 parsed_parser_service = urlparse(self.asset_screenshot_parser_service_base_url)
                 if parsed_parser_service.scheme not in {"http", "https"} or not parsed_parser_service.netloc:
                     issues.append(ConfigIssue(
                         severity="error",
-                        message="ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL 必须是有效的 http/https 地址。",
-                        field="ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL",
+                        message="ASSET_PARSER_BASE_URL 必须是有效的 http/https 地址。",
+                        field="ASSET_PARSER_BASE_URL",
                     ))
 
         return issues

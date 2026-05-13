@@ -1409,15 +1409,15 @@ HOLDING_SCREENSHOT_STALE_REMINDER_HOURS=24
 推荐配置：
 
 ```env
-ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true
-ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL=http://127.0.0.1:8010
-ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY=
-ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS=20
+ASSET_PARSER_ENABLED=true
+ASSET_PARSER_BASE_URL=http://127.0.0.1:8010
+ASSET_PARSER_API_KEY=
+ASSET_PARSER_TIMEOUT_SECONDS=90
 ```
 
 说明：
 
-- 当 `ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED=true` 且 `ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL` 可用时，外部持仓截图会调用新服务的 `/api/v1/screenshots/parse`。
-- 旧的 `OCR_SERVICE_*` 配置仅保留兼容读取，不再作为推荐入口。
+- 当 `ASSET_PARSER_ENABLED=true` 且 `ASSET_PARSER_BASE_URL` 可用时，外部持仓截图会调用新服务的 `/api/v1/screenshots/parse`。
+- 旧的 `ASSET_SCREENSHOT_PARSER_SERVICE_*` 与 `OCR_SERVICE_*` 配置仅保留兼容读取，不再作为推荐入口。
 - 若新服务不可用，截图提取会失败并提示配置或服务连接问题；当前项目不再回退到内置 Vision LLM 解析。
 - 新服务仓库本地路径为 `/Users/Reuxs/workspace/creative/asset-screenshot-parser-service`。

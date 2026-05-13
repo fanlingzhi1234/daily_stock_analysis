@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 外部持仓截图解析能力拆分到独立 `asset-screenshot-parser-service`，当前项目改为通过 HTTP 调用新服务生成持仓快照。
 - [改进] 外部持仓截图链路移除内置 OCR/parser/Vision fallback，`daily_stock_analysis` 仅负责截图校验、快照入库、确认和飞书同步。
 - [文档] 新增并迁移资产截图解析服务设计文档，补充 `ASSET_SCREENSHOT_PARSER_SERVICE_*` 接入配置。
+- [改进] 外部持仓截图解析接入支持 `ASSET_PARSER_*` 推荐配置别名，并保留旧 `ASSET_SCREENSHOT_PARSER_SERVICE_*` / `OCR_SERVICE_*` 兼容读取。
+- [文档] 新增 daily_stock_analysis 主服务上线部署与实战方案，梳理截图快照与荐股、自选股分析、持仓分析和提醒的集成边界。
+- [修复] 外部持仓截图中 ETF / 指数类名称缺失代码时不再走普通 A 股模糊解析，避免将“恒指科技”等短名称误补为相近股票代码。
 <!-- 新条目格式：- [类型] 描述（类型取值：新功能/改进/修复/文档/测试/chore）-->
 <!-- 每条独立一行追加到本段末尾，无需分类标题，合并时冲突最小 -->
 - [修复] 未配置 Tushare / Longbridge 凭据时不再实例化对应可选 fetcher，避免缺失凭据的数据源进入候选集。

@@ -53,6 +53,52 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
 
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_asset_parser_short_env_aliases_are_supported(
+        self, _mock_parse_litellm_yaml, _mock_setup_env
+    ):
+        with patch.dict(
+            os.environ,
+            {
+                "STOCK_LIST": "600519",
+                "ASSET_PARSER_ENABLED": "true",
+                "ASSET_PARSER_BASE_URL": "http://asset-parser:8010",
+                "ASSET_PARSER_API_KEY": "parser-secret",
+                "ASSET_PARSER_TIMEOUT_SECONDS": "90",
+            },
+            clear=True,
+        ):
+            config = Config._load_from_env()
+
+        self.assertTrue(config.asset_screenshot_parser_service_enabled)
+        self.assertEqual(config.asset_screenshot_parser_service_base_url, "http://asset-parser:8010")
+        self.assertEqual(config.asset_screenshot_parser_service_api_key, "parser-secret")
+        self.assertEqual(config.asset_screenshot_parser_service_timeout_seconds, 90.0)
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_legacy_asset_parser_env_aliases_still_work(
+        self, _mock_parse_litellm_yaml, _mock_setup_env
+    ):
+        with patch.dict(
+            os.environ,
+            {
+                "STOCK_LIST": "600519",
+                "ASSET_SCREENSHOT_PARSER_SERVICE_ENABLED": "true",
+                "ASSET_SCREENSHOT_PARSER_SERVICE_BASE_URL": "http://legacy-parser:8010",
+                "ASSET_SCREENSHOT_PARSER_SERVICE_API_KEY": "legacy-secret",
+                "ASSET_SCREENSHOT_PARSER_SERVICE_TIMEOUT_SECONDS": "45",
+            },
+            clear=True,
+        ):
+            config = Config._load_from_env()
+
+        self.assertTrue(config.asset_screenshot_parser_service_enabled)
+        self.assertEqual(config.asset_screenshot_parser_service_base_url, "http://legacy-parser:8010")
+        self.assertEqual(config.asset_screenshot_parser_service_api_key, "legacy-secret")
+        self.assertEqual(config.asset_screenshot_parser_service_timeout_seconds, 45.0)
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
     def test_schedule_run_immediately_falls_back_to_legacy_run_immediately(
         self,
         _mock_parse_yaml,
